@@ -8,45 +8,57 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Check, Copy, FileText, GitCompareArrows, Package, RefreshCw, Rocket } from 'lucide-react'
 import type { FlattenedModel } from '@/types'
 import { CAPABILITIES } from '@/constants'
+import { getCapabilitySupportState, type SupportState } from '@/lib/model-display'
 import {
   cn,
   formatCostPerMillion,
   formatTokens,
   getModalityIcon,
-  stringifyModelDefinition,
 } from '@/lib/utils'
 import { ModelFamilyIcon, ModelLogo } from './ModelLogo'
+import { ModelJsonCopyMenu } from './ModelJsonCopyMenu'
+
+function capabilityBadgeClass(state: SupportState) {
+  if (state === 'supported') return 'border-success/30 bg-success/10 text-success'
+  if (state === 'unknown') return 'border-border/60 bg-muted/40 text-muted-foreground opacity-70'
+  return 'opacity-35'
+}
+
+function capabilityTooltipSuffix(state: SupportState, t: (key: string) => string) {
+  if (state === 'supported') return ''
+  if (state === 'unknown') return ` ${t('capabilities.unknown')}`
+  return ` ${t('capabilities.notSupported')}`
+}
+
+function capabilityAriaLabel(
+  name: string,
+  state: SupportState,
+  t: (key: string) => string,
+): string {
+  if (state === 'supported') return `${name}, ${t('detail.supported')}`
+  if (state === 'unknown') return `${name}, ${t('detail.unknownSupport')}`
+  return `${name}, ${t('detail.notSupported')}`
+}
 
 export function ModelCard({
   model,
-  onCopy,
   onViewDetails,
   isInComparison,
   isComparisonDisabled,
   onComparisonToggle,
 }: {
   model: FlattenedModel
-  onCopy: (model: FlattenedModel) => void
   onViewDetails: (model: FlattenedModel) => void
   isInComparison: boolean
   isComparisonDisabled: boolean
   onComparisonToggle: (model: FlattenedModel) => void
 }) {
   const { t } = useTranslation()
-  const [copied, setCopied] = useState(false)
   const [npmCopied, setNpmCopied] = useState(false)
   const [idCopied, setIdCopied] = useState(false)
   const costLabels = { free: t('common.free'), unknown: t('common.unknown') }
   const documentationUrl = model.doc ?? model.providerDoc
   const comparisonBlocked = isComparisonDisabled && !isInComparison
-
-  const handleCopy = useCallback((event: MouseEvent) => {
-    event.stopPropagation()
-    navigator.clipboard.writeText(stringifyModelDefinition(model))
-    setCopied(true)
-    onCopy(model)
-    setTimeout(() => setCopied(false), 2000)
-  }, [model, onCopy])
 
   const handleNpmCopy = useCallback((event: MouseEvent) => {
     event.stopPropagation()
@@ -173,14 +185,7 @@ export function ModelCard({
                 <TooltipContent>{t('detail.documentation')}</TooltipContent>
               </Tooltip>
             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button type="button" variant="ghost" size="icon-sm" onClick={handleCopy}>
-                  {copied ? <Check className="text-primary" /> : <Copy />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('card.copyModelJson')}</TooltipContent>
-            </Tooltip>
+            <ModelJsonCopyMenu model={model} mode="catalog" />
           </div>
         </div>
       </CardHeader>
@@ -188,22 +193,22 @@ export function ModelCard({
       <CardContent className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-1.5">
           {CAPABILITIES.map(({ key, icon: Icon }) => {
-            const isEnabled = model[key]
+            const state = getCapabilitySupportState(key, model[key])
+            const capabilityName = t(`capabilities.${key}`)
             return (
               <Tooltip key={key}>
                 <TooltipTrigger asChild>
                   <Badge
-                    variant={isEnabled ? 'outline' : 'ghost'}
-                    className={cn(
-                      isEnabled && 'border-success/30 bg-success/10 text-success',
-                      !isEnabled && 'opacity-35',
-                    )}
+                    variant={state === 'supported' ? 'outline' : state === 'unknown' ? 'outline' : 'ghost'}
+                    className={cn(capabilityBadgeClass(state))}
+                    role="img"
+                    aria-label={capabilityAriaLabel(capabilityName, state, t)}
                   >
                     <Icon aria-hidden="true" />
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {t(`capabilities.${key}`)}{isEnabled ? '' : ` ${t('capabilities.notSupported')}`}
+                  {capabilityName}{capabilityTooltipSuffix(state, t)}
                 </TooltipContent>
               </Tooltip>
             )

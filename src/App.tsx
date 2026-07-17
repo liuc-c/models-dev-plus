@@ -56,11 +56,11 @@ import {
   getComparisonIdentityKey,
   normalizeComparisonIdentities,
   createSearchTextIndex,
-  createSearchTextIndexes,
   matchesSearchTextIndex,
   type SearchTextIndex,
   cn,
 } from '@/lib/utils'
+import { createModelSearchIndexes } from '@/lib/model-search'
 import { ModelCard } from '@/components/ModelCard'
 import { ModelDetailSheet } from '@/components/ModelDetailSheet'
 import { Pagination } from '@/components/Pagination'
@@ -260,12 +260,7 @@ export default function App() {
         const model = allModels[currentIndex]
         entries.push({
           key: getComparisonIdentityKey(model),
-          searchIndexes: createSearchTextIndexes([
-            model.name,
-            model.id,
-            model.family,
-            model.providerName,
-          ]),
+          searchIndexes: createModelSearchIndexes(model),
         })
         currentIndex += 1
 
@@ -396,12 +391,16 @@ export default function App() {
         }
 
         if (effectiveSelectedInputModality.length > 0) {
-          const supportsInput = effectiveSelectedInputModality.every(m => model.modalities?.input?.includes(m))
+          const supportsInput = effectiveSelectedInputModality.every((m) =>
+            model.modalities?.input?.some((item) => item === m),
+          )
           if (!supportsInput) return false
         }
 
         if (effectiveSelectedOutputModality.length > 0) {
-          const supportsOutput = effectiveSelectedOutputModality.every(m => model.modalities?.output?.includes(m))
+          const supportsOutput = effectiveSelectedOutputModality.every((m) =>
+            model.modalities?.output?.some((item) => item === m),
+          )
           if (!supportsOutput) return false
         }
 
@@ -599,10 +598,6 @@ export default function App() {
     effectiveSelectedOutputModality.length > 0 ||
     selectedStatus !== 'all' ||
     sortBy !== 'lastUpdated'
-
-  const handleCopy = useCallback(() => {
-    // Could add toast notification here
-  }, [])
 
   const handleViewDetails = useCallback((model: FlattenedModel) => {
     setSelectedModelIdentity({
@@ -1117,7 +1112,6 @@ export default function App() {
               sortBy={sortBy}
               onSortChange={handleSortChange}
               onViewDetails={handleViewDetails}
-              onCopy={handleCopy}
               comparisonSelectionKeys={comparisonSelectionKeys}
               isComparisonDisabled={selectedComparisonModels.length >= MAX_COMPARISON_MODELS}
               onComparisonToggle={handleComparisonToggle}
@@ -1136,7 +1130,6 @@ export default function App() {
                 <ModelCard
                   key={`${model.providerId}-${model.id}`}
                   model={model}
-                  onCopy={handleCopy}
                   onViewDetails={handleViewDetails}
                   isInComparison={comparisonSelectionKeys.has(getComparisonIdentityKey(model))}
                   isComparisonDisabled={selectedComparisonModels.length >= MAX_COMPARISON_MODELS}

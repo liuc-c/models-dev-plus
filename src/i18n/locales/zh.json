@@ -11,6 +11,28 @@
     "free": "免费",
     "unknown": "未知"
   },
+  "copyJson": {
+    "trigger": "复制 JSON",
+    "modelsDevGroup": "models.dev",
+    "modelsDevFragment": "models.dev 模型片段",
+    "modelsDevFragmentHint": "非独立 JSON · 单模型条目",
+    "modelsDevMetadata": "models.dev 完整元数据",
+    "modelsDevMetadataHint": "完整模型与提供商上下文",
+    "opencodeGroup": "OpenCode",
+    "opencodeModelFragment": "OpenCode 模型片段",
+    "opencodeModelFragmentHint": "非独立 JSON · 粘贴到 provider.<id>.models",
+    "opencodeProviderFragment": "OpenCode provider 片段",
+    "opencodeProviderFragmentHint": "非独立 JSON · 粘贴到配置顶层 · 包含当前模型",
+    "opencodeConfig": "OpenCode 完整配置",
+    "opencodeConfigHint": "设置当前模型为默认 · 不含凭据",
+    "copiedModelsDevFragment": "已复制 models.dev 模型片段",
+    "copiedModelsDevMetadata": "已复制 models.dev 完整元数据",
+    "copiedOpencodeModelFragment": "已复制 OpenCode 模型片段",
+    "copiedOpencodeProviderFragment": "已复制 OpenCode provider 片段",
+    "copiedOpencodeConfig": "已复制 OpenCode 完整配置",
+    "failed": "无法复制到剪贴板",
+    "failedShort": "复制失败"
+  },
   "header": {
     "title": "Models.dev++",
     "subtitle": "浏览来自 {{providerCount}} 个提供商的 {{modelCount}} 个 AI 模型",
@@ -75,7 +97,8 @@
     "structured_output": "结构化输出",
     "attachment": "附件",
     "open_weights": "开放权重",
-    "notSupported": "（不支持）"
+    "notSupported": "（不支持）",
+    "unknown": "（未知）"
   },
   "card": {
     "context": "上下文",
@@ -105,12 +128,28 @@
     "no": "否",
     "supported": "支持",
     "notSupported": "不支持",
+    "unknownSupport": "未知",
     "dates": "日期",
     "releaseDate": "发布日期",
     "lastUpdated": "最后更新",
     "knowledgeCutoff": "知识截止日期",
     "capabilities": "能力",
     "interleaved": "交错模式",
+    "reasoningOptions": "推理选项",
+    "reasoningOptionsNotApplicable": "不适用",
+    "reasoningOptionsUnknown": "未提供",
+    "reasoningOptionsEmpty": "无可配置选项",
+    "reasoningToggle": "开关",
+    "reasoningEffort": "力度",
+    "reasoningEffortNone": "无",
+    "reasoningEffortDefault": "默认",
+    "reasoningBudget": "预算 tokens",
+    "reasoningBudgetRange": "{{min}}–{{max}}",
+    "reasoningBudgetMin": "最小 {{value}}",
+    "reasoningBudgetMax": "最大 {{value}}",
+    "reasoningPartSeparator": " · ",
+    "reasoningValueSeparator": "、",
+
     "modalities": "模态",
     "input": "输入",
     "tokenLimits": "Token 限制",
@@ -143,7 +182,7 @@
     "requestBody": "请求体",
     "requestHeaders": "请求头",
     "rawJson": "原始 JSON",
-    "completeRawJson": "完整模型与提供商上下文"
+    "completeRawJson": "models.dev 完整元数据（预览）"
   },
   "compare": {
     "title": "模型对比",

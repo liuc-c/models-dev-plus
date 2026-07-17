@@ -20,9 +20,9 @@ import {
   formatTokens,
   getComparisonIdentityKey,
   getModalityIcon,
-  stringifyModelDefinition,
 } from '@/lib/utils'
 import { ModelFamilyIcon, ModelLogo } from './ModelLogo'
+import { ModelJsonCopyMenu } from './ModelJsonCopyMenu'
 
 interface TableColumn {
   key: string
@@ -92,7 +92,6 @@ export function ModelAnalysisTable({
   sortBy,
   onSortChange,
   onViewDetails,
-  onCopy,
   comparisonSelectionKeys,
   isComparisonDisabled,
   onComparisonToggle,
@@ -101,23 +100,13 @@ export function ModelAnalysisTable({
   sortBy: string
   onSortChange: (sort: string) => void
   onViewDetails: (model: FlattenedModel) => void
-  onCopy: (model: FlattenedModel) => void
   comparisonSelectionKeys: Set<string>
   isComparisonDisabled: boolean
   onComparisonToggle: (model: FlattenedModel) => void
 }) {
   const { t } = useTranslation()
-  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [copiedIdKey, setCopiedIdKey] = useState<string | null>(null)
   const costLabels = { free: t('common.free'), unknown: t('common.unknown') }
-
-  const handleCopy = useCallback((model: FlattenedModel) => {
-    const key = `${model.providerId}:${model.id}`
-    navigator.clipboard.writeText(stringifyModelDefinition(model))
-    setCopiedKey(key)
-    onCopy(model)
-    setTimeout(() => setCopiedKey(null), 2000)
-  }, [onCopy])
 
   const handleIdCopy = useCallback((model: FlattenedModel) => {
     const key = `${model.providerId}:${model.id}`
@@ -276,7 +265,6 @@ export function ModelAnalysisTable({
       render: (model) => {
         const comparisonSelected = comparisonSelectionKeys.has(getComparisonIdentityKey(model))
         const comparisonBlocked = isComparisonDisabled && !comparisonSelected
-        const copyKey = `${model.providerId}:${model.id}`
 
         return (
           <div className="flex items-center justify-end gap-1">
@@ -306,14 +294,7 @@ export function ModelAnalysisTable({
               </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button type="button" variant="ghost" size="icon-sm" onClick={() => handleCopy(model)}>
-                  {copiedKey === copyKey ? <Check className="text-primary" /> : <Copy />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('card.copyModelJson')}</TooltipContent>
-            </Tooltip>
+            <ModelJsonCopyMenu model={model} mode="catalog" />
 
             <Tooltip>
               <TooltipTrigger asChild>

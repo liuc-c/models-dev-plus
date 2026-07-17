@@ -1,4 +1,4 @@
-import { useState, useCallback, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Sheet,
@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
-  Copy,
   Check,
   Info,
   Calendar,
@@ -22,6 +21,7 @@ import {
   SlidersHorizontal,
   Database,
 } from 'lucide-react'
+import { ModelJsonCopyMenu } from './ModelJsonCopyMenu'
 import type {
   FlattenedModel,
   ModelCostFields,
@@ -30,9 +30,47 @@ import type {
   ModelProviderOverride,
 } from '@/types'
 import { CAPABILITIES } from '@/constants'
+import {
+  createReasoningOptionsLabels,
+  getCapabilitySupportState,
+  getInterleavedSupport,
+  getSupportState,
+  summarizeReasoningOptions,
+  type SupportState,
+} from '@/lib/model-display'
 import { cn, formatDate, formatTokens, formatCost, stringifyCompleteModelMetadata } from '@/lib/utils'
 import { ModelFamilyIcon, ModelLogo } from './ModelLogo'
 import { DetailRow } from './DetailRow'
+
+function supportStateLabel(
+  state: SupportState,
+  t: (key: string) => string,
+  detail?: string,
+): string {
+  if (state === 'supported') return detail ?? t('detail.supported')
+  if (state === 'not_supported') return t('detail.notSupported')
+  return t('detail.unknownSupport')
+}
+
+function capabilityTileClass(state: SupportState) {
+  if (state === 'supported') return 'bg-success/10 text-success'
+  if (state === 'not_supported') return 'bg-muted/30 opacity-50'
+  return 'bg-muted/40 text-muted-foreground'
+}
+
+function summarizeReasoningOptionsDisplay(
+  options: FlattenedModel['reasoning_options'],
+  reasoning: boolean,
+  t: (key: string) => string,
+) {
+  return summarizeReasoningOptions(options, createReasoningOptionsLabels(t), reasoning)
+}
+
+function capabilityStateSrLabel(state: SupportState, t: (key: string) => string): string {
+  if (state === 'supported') return t('detail.supported')
+  if (state === 'not_supported') return t('detail.notSupported')
+  return t('detail.unknownSupport')
+}
 
 function DetailSection({
   title,
@@ -80,15 +118,7 @@ export function ModelDetailSheet({
   onOpenChange: (open: boolean) => void
 }) {
   const { t } = useTranslation()
-  const [copied, setCopied] = useState(false)
-  
-  const handleCopyJson = useCallback(() => {
-    if (!model) return
-    navigator.clipboard.writeText(stringifyCompleteModelMetadata(model))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }, [model])
-  
+
   if (!model) return null
 
   const costLabels = { free: t('common.free'), unknown: t('common.unknown') }
@@ -96,6 +126,14 @@ export function ModelDetailSheet({
   const jsonOutput = stringifyCompleteModelMetadata(model)
   const providerOverride = model.provider
   const experimentalModes = Object.entries(model.experimental?.modes ?? {})
+  const temperatureState = getSupportState(model.temperature, 'optional')
+  const interleaved = getInterleavedSupport(model.interleaved)
+  const reasoningOptionsSummary = summarizeReasoningOptionsDisplay(
+    model.reasoning_options,
+    model.reasoning,
+    t,
+  )
+  const hasDescription = Boolean(model.description?.trim())
 
   const renderCostRows = (cost: ModelCostFields | undefined, showUnknownBase = false) => (
     <>
@@ -210,6 +248,11 @@ export function ModelDetailSheet({
               </SheetDescription>
             </div>
           </div>
+          {hasDescription && (
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground text-pretty line-clamp-4">
+              {model.description}
+            </p>
+          )}
         </SheetHeader>
         <Separator />
 
@@ -222,7 +265,7 @@ export function ModelDetailSheet({
               <DetailRow label={t('detail.family')} value={model.family} />
               <DetailRow label={t('detail.status')} value={model.status ? t(`card.status.${model.status}`) : undefined} />
               <DetailRow label={t('detail.openWeights')} value={model.open_weights ? t('detail.yes') : t('detail.no')} />
-              <DetailRow label={t('detail.temperature')} value={model.temperature ? t('detail.supported') : t('detail.notSupported')} />
+              <DetailRow label={t('detail.temperature')} value={supportStateLabel(temperatureState, t)} />
             </div>
           </DetailSection>
           
@@ -236,28 +279,38 @@ export function ModelDetailSheet({
           
           <DetailSection title={t('detail.capabilities')} icon={<Sparkles className="size-4" />}>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {CAPABILITIES.map(({ key, icon: Icon }) => (
-                <div 
-                  key={key} 
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg p-2 text-sm',
-                    model[key] ? 'bg-success/10 text-success' : 'bg-muted/30 opacity-50',
-                  )}
-                >
-                  <Icon className="size-4" />
-                  <span>{t(`capabilities.${key}`)}</span>
-                  {model[key] && <Check className="ml-auto size-3" />}
-                </div>
-              ))}
+              {CAPABILITIES.map(({ key, icon: Icon }) => {
+                const state = getCapabilitySupportState(key, model[key])
+                return (
+                  <div
+                    key={key}
+                    className={cn(
+                      'flex items-center gap-2 rounded-lg p-2 text-sm',
+                      capabilityTileClass(state),
+                    )}
+                  >
+                    <Icon className="size-4" aria-hidden="true" />
+                    <span>{t(`capabilities.${key}`)}</span>
+                    <span className="sr-only">{capabilityStateSrLabel(state, t)}</span>
+                    {state === 'supported' && <Check className="ml-auto size-3" aria-hidden="true" />}
+                    {state === 'unknown' && (
+                      <span className="ml-auto text-[10px] uppercase tracking-wide opacity-80" aria-hidden="true">
+                        {t('detail.unknownSupport')}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
             <div className="bg-muted/30 rounded-lg px-3 mt-2">
-              <DetailRow label={t('detail.interleaved')} value={
-                model.interleaved
-                  ? model.interleaved === true
-                    ? t('detail.supported')
-                    : model.interleaved.field
-                  : t('detail.notSupported')
-              } />
+              <DetailRow
+                label={t('detail.interleaved')}
+                value={supportStateLabel(interleaved.state, t, interleaved.detail)}
+              />
+              <DetailRow
+                label={t('detail.reasoningOptions')}
+                value={reasoningOptionsSummary.text}
+              />
             </div>
           </DetailSection>
           
@@ -354,10 +407,7 @@ export function ModelDetailSheet({
           <DetailSection title={t('detail.rawJson')} className="xl:col-span-2">
             <div className="flex items-center justify-between gap-3 mb-2">
               <div className="text-xs text-muted-foreground">{t('detail.completeRawJson')}</div>
-              <Button variant="outline" size="sm" onClick={handleCopyJson}>
-                {copied ? <Check data-icon="inline-start" aria-hidden="true" /> : <Copy data-icon="inline-start" aria-hidden="true" />}
-                {copied ? t('common.copied') : t('common.copy')}
-              </Button>
+              <ModelJsonCopyMenu model={model} mode="detail" />
             </div>
             <ScrollArea className="max-h-64 min-w-0 rounded-lg border border-border/60 bg-muted/50">
               <pre className="min-w-0 whitespace-pre-wrap break-all p-3 font-mono text-xs">

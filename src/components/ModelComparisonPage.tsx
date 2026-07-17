@@ -14,6 +14,14 @@ import {
 import type { FlattenedModel } from '@/types'
 import { CAPABILITIES, COMPARISON_FIELD_COLUMN_REM, COMPARISON_MODEL_COLUMN_REM } from '@/constants'
 import {
+  createReasoningOptionsLabels,
+  getCapabilitySupportState,
+  getInterleavedSupport,
+  getSupportState,
+  summarizeReasoningOptions,
+  type SupportState,
+} from '@/lib/model-display'
+import {
   cn,
   formatCostPerMillion,
   formatDate,
@@ -113,26 +121,33 @@ function getBestKeys(models: FlattenedModel[], metric: ComparisonMetric | undefi
 }
 
 function SupportValue({
-  supported,
+  state,
   supportedLabel,
   notSupportedLabel,
+  unknownLabel,
   detail,
 }: {
-  supported: boolean
+  state: SupportState
   supportedLabel: string
   notSupportedLabel: string
+  unknownLabel: string
   detail?: string
 }) {
-  const label = supported ? detail ?? supportedLabel : notSupportedLabel
-  const Icon = supported ? Check : X
+  const label =
+    state === 'supported'
+      ? detail ?? supportedLabel
+      : state === 'not_supported'
+        ? notSupportedLabel
+        : unknownLabel
+  const Icon = state === 'supported' ? Check : state === 'not_supported' ? X : Info
 
   return (
     <span
       className={cn(
         'inline-flex max-w-full items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium',
-        supported
-          ? 'border-success/30 bg-success/10 text-success'
-          : 'border-destructive/30 bg-destructive/10 text-destructive',
+        state === 'supported' && 'border-success/30 bg-success/10 text-success',
+        state === 'not_supported' && 'border-destructive/30 bg-destructive/10 text-destructive',
+        state === 'unknown' && 'border-border bg-muted/50 text-muted-foreground',
       )}
     >
       <Icon aria-hidden="true" className="size-3 shrink-0" />
@@ -188,6 +203,8 @@ export function ModelComparisonPage({
   const groups = useMemo<ComparisonGroup[]>(() => {
     const supported = t('detail.supported')
     const notSupported = t('detail.notSupported')
+    const unknownSupport = t('detail.unknownSupport')
+    const reasoningLabels = createReasoningOptionsLabels(t)
     const costLabels = { free: t('common.free'), unknown: t('common.unknown') }
     const formatPrice = (value: number | undefined) => formatCostPerMillion(value, costLabels)
 
@@ -236,9 +253,10 @@ export function ModelComparisonPage({
             label: t(`capabilities.${key}`),
             render: (model: FlattenedModel) => (
               <SupportValue
-                supported={Boolean(model[key])}
+                state={getCapabilitySupportState(key, model[key])}
                 supportedLabel={supported}
                 notSupportedLabel={notSupported}
+                unknownLabel={unknownSupport}
               />
             ),
           })),
@@ -246,28 +264,49 @@ export function ModelComparisonPage({
             label: t('detail.temperature'),
             render: (model) => (
               <SupportValue
-                supported={Boolean(model.temperature)}
+                state={getSupportState(model.temperature, 'optional')}
                 supportedLabel={supported}
                 notSupportedLabel={notSupported}
+                unknownLabel={unknownSupport}
               />
             ),
           },
           {
             label: t('detail.interleaved'),
-            render: (model) =>
-              model.interleaved ? (
+            render: (model) => {
+              const interleaved = getInterleavedSupport(model.interleaved)
+              return (
                 <SupportValue
-                  supported
+                  state={interleaved.state}
                   supportedLabel={supported}
                   notSupportedLabel={notSupported}
-                  detail={model.interleaved === true ? undefined : model.interleaved.field}
+                  unknownLabel={unknownSupport}
+                  detail={interleaved.detail}
                 />
-              ) : (
-                <SupportValue supported={false} supportedLabel={supported} notSupportedLabel={notSupported} />
-              ),
+              )
+            },
+          },
+          {
+            label: t('detail.reasoningOptions'),
+            render: (model) => {
+              const summary = summarizeReasoningOptions(
+                model.reasoning_options,
+                reasoningLabels,
+                model.reasoning,
+              )
+              return (
+                <span
+                  className="min-w-0 truncate text-xs text-muted-foreground"
+                  title={summary.text}
+                >
+                  {summary.text}
+                </span>
+              )
+            },
           },
         ],
       },
+
       {
         title: t('compare.groups.modalities'),
         tone: 'modalities',
